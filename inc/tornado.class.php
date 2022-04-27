@@ -117,8 +117,7 @@ class Tornado {
 		$onionAddressNoTLD = str_ireplace(self::$onionTLD, '', trim(strtolower($onionAddress)));
 		$keyPath = self::$basePath . '/' . $onionAddress . '/' . self::$clientsKeysDir;
 		$clientPath = self::$basePath . '/' . $onionAddress . '/' . self::$authorizedClientsDir;
-		if (!self::$disableSaveFiles)
-			TornadoHelper::createDirectory($keyPath, self::$clientsKeysFilesAndDirChmod, true);
+		TornadoHelper::createDirectory($keyPath, self::$clientsKeysFilesAndDirChmod, true);
 		TornadoHelper::createDirectory($clientPath, self::$authorizedClientDirChmod, true);
 		do
 		{
@@ -130,10 +129,10 @@ class Tornado {
 			$secretSavePath = $keyPath . '/' . $client . self::$authorizedClientFilePrivateSuffix;
 			$publicAuthLine = self::$descriptorName . self::$descriptorDelimiter . self::$descriptorType . self::$descriptorDelimiter . $publicKey;
 			$publicSavePath = $clientPath . '/' . $client . self::$authorizedClientFileSuffix;
+			TornadoHelper::saveFile($secretSavePath, $secretAuthLine . "\n", self::$clientsKeysFilesAndDirChmod);
+			TornadoHelper::saveFile($publicSavePath, $publicAuthLine . "\n", self::$onionFilesChmod);
 			if (!self::$disableSaveFiles)
 			{
-				TornadoHelper::saveFile($secretSavePath, $secretAuthLine . "\n", self::$clientsKeysFilesAndDirChmod);
-				TornadoHelper::saveFile($publicSavePath, $publicAuthLine . "\n", self::$onionFilesChmod);
 				$list.= '"' . $client . '","' . $secretKey . '"' . "\n";
 				$result['clients'][$count-1]['public_hs_server_file'] = $publicSavePath;
 				$result['clients'][$count-1]['secret_tb_client_file'] = $secretSavePath;
@@ -185,10 +184,13 @@ class TornadoHelper extends Tornado {
 
 	protected static function createDirectory($path, $chmod, $recursive=false)
 	{
-		$path = rtrim($path, '/\\');
 		if (!parent::$disableSaveFiles)
-			if (!file_exists($path) || !is_dir($path))
-				mkdir($path, $chmod, $recursive);
+		{
+			$path = rtrim($path, '/\\');
+			if (!parent::$disableSaveFiles)
+				if (!file_exists($path) || !is_dir($path))
+					mkdir($path, $chmod, $recursive);
+		}
 	}
 
 	protected static function sanitizeClient($client)
@@ -209,8 +211,11 @@ class TornadoHelper extends Tornado {
 
 	protected static function saveFile($path, $data, $chmod=0755)
 	{
-		file_put_contents($path, $data);
-		chmod($path, $chmod);
+		if (!parent::$disableSaveFiles)
+		{
+			file_put_contents($path, $data);
+			chmod($path, $chmod);
+		}
 	}
 
 	protected static function validateAddress($address)
