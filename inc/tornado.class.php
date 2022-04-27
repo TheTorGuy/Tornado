@@ -106,14 +106,15 @@ class Tornado {
 	public function generateAuthorization($onionAddress, $limit=1, $direct=true)
 	{
 		$clients = ''; $count = 1;  $list = ''; $result = array();
-		if (is_array($limit)) {
+		if (!TornadoHelper::validateAddress($onionAddress))
+			return false;
+		if (is_array($limit))
+		{
 			$clients = $limit;
 			$limit = count($limit);
 		}
 		if ($direct == true)
 			$result['address'] = $onionAddress;
-		if (!TornadoHelper::validateAddress($onionAddress))
-			return false;
 		$onionAddressNoTLD = str_ireplace(self::$onionTLD, '', trim(strtolower($onionAddress)));
 		$keyPath = self::$basePath . '/' . $onionAddress . '/' . self::$clientsKeysDir;
 		$clientPath = self::$basePath . '/' . $onionAddress . '/' . self::$authorizedClientsDir;
