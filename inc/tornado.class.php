@@ -145,7 +145,7 @@ class Tornado {
 			ksort ($result['clients'][$count-1]);
 			$count++;
 		} while ($count <= $limit);
-		if (!self::$disableSaveFiles && !self::$disableCSVFile)
+		if (!self::$disableCSVFile)
 			TornadoHelper::saveFile(self::$basePath . '/' . $onionAddress . '/' . self::$clientsKeysCSV, $list . "\n", self::$clientsKeysFilesAndDirChmod);
 		return self::$jsonResponse && $direct ? json_encode($result) : $result;
 	}
