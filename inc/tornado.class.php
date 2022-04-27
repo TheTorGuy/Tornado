@@ -184,13 +184,10 @@ class TornadoHelper extends Tornado {
 
 	protected static function createDirectory($path, $chmod, $recursive=false)
 	{
+		$path = rtrim($path, '/\\');
 		if (!parent::$disableSaveFiles)
-		{
-			$path = rtrim($path, '/\\');
-			if (!parent::$disableSaveFiles)
-				if (!file_exists($path) || !is_dir($path))
-					mkdir($path, $chmod, $recursive);
-		}
+			if (!file_exists($path) || !is_dir($path))
+				mkdir($path, $chmod, $recursive);
 	}
 
 	protected static function sanitizeClient($client)
