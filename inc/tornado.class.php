@@ -40,6 +40,7 @@ class Tornado {
 	protected static $descriptorDelimiter = ':';
 	protected static $descriptorName = 'descriptor';
 	protected static $descriptorType = 'x25519';
+	protected static $descriptorTypeControlPort = 'ED25519-V3';
 	protected static $expandSecretKeyHashAlgo = 'sha512';
 	protected static $hostNameFile = 'hostname';
 	protected static $onionChecksum = '.onion checksum';
@@ -82,13 +83,17 @@ class Tornado {
 		{
 			$newKeyPair = sodium_crypto_sign_keypair();
 			$secretKey = sodium_crypto_sign_secretkey($newKeyPair);
+			$secretKeyExpanded = self::expandSecretKey($secretKey);
 			$publicKey = sodium_crypto_sign_publickey($newKeyPair);
 			$onionAddress = self::encodePublicKey($publicKey);
 			$result[$count-1]['address'] = $onionAddress;
 			if ($clients > 0 || is_array($clients))
 				$result[$count-1]['clients'] = array_values(self::generateAuthorization($onionAddress, $clients, false)['clients']);
-			$result[$count-1][self::$publicKeyFileName . '_base64'] = base64_encode($publicKey);
-			$result[$count-1][self::$secretKeyFileName . '_base64'] = base64_encode($secretKey);
+			$result[$count-1][self::$publicKeyFileName . '_base64'] = base64_encode(self::$publicKeyFileHeader . $publicKey);
+			$result[$count-1][self::$secretKeyFileName . '_base64'] = base64_encode(self::$secretKeyFileHeader . $secretKeyExpanded);
+			$result[$count-1][self::$secretKeyFileName . '_control_port_api'] = self::$descriptorTypeControlPort . self::$descriptorDelimiter . base64_encode($secretKeyExpanded);
+
+		
 			if (!self::$disableSaveFiles)
 			{
 				TornadoHelper::saveAddress($onionAddress, $publicKey, $secretKey);
