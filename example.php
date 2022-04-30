@@ -53,3 +53,17 @@ print_r($tornado->generateAuthorization('2d7n3lfrcvxy3453jcrngiu3cov3cu6vxjrttes
 print "\nGenerate 5 authenticated named clients for existing onion address:\n\n";
 $clients = array('Alice', 'Bob', 'Eve', 'John', 'Mallory');
 print_r($tornado->generateAuthorization('lgxsp4kuccd4nhwganvtnyhqveojchn7ipnbelusurmqwzwndhblg3id.onion', $clients));
+
+// Extras
+
+// Validate onion address
+#$tornado->validateAddress('cklhlxo7nblfdviy6pqpw64qlj6yu4rjl47ejsah6i7vfjxegnvlylid.onion'); // Returns true or false
+
+// Verify hs_ed25519_public_key file
+#$tornado->verifyPublicKeyFile('hs_ed25519_public_key'); // Returns true or false
+
+// Verify hs_ed25519_secret_key file
+#$tornado->verifySecretKeyFile('hs_ed25519_secret_key'); // Returns true or false
+
+// Get onion address from hs_ed25519_public_key
+#$tornado->getAddressFromPublicKeyFile('hs_ed25519_public_key'); // Returns string or false
