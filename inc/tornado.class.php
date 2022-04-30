@@ -35,6 +35,7 @@ class Tornado {
 	protected static $authorizedClientDirChmod = 0700;
 	protected static $authorizedClientFileSuffix = '.auth';
 	protected static $authorizedClientsDir = 'authorized_clients';
+	protected static $b32Range = array();
 	protected static $basePath = '';
 	protected static $clientsKeysFilesAndDirChmod = 0755;
 	protected static $descriptorDelimiter = ':';
@@ -53,8 +54,10 @@ class Tornado {
 	protected static $overrideChmod = 0777;
 	protected static $publicKeyFileHeader = '== ed25519v1-public: type0 ==' . "\x00\x00\x00";
 	protected static $publicKeyFileName = 'hs_ed25519_public_key';
+	protected static $publicKeyFileSize = 64;
 	protected static $secretKeyFileHeader = '== ed25519v1-secret: type0 ==' . "\x00\x00\x00";
 	protected static $secretKeyFileName = 'hs_ed25519_secret_key';
+	protected static $secretKeyFileSize = 96;
 	
 	public function __construct()
 	{
@@ -73,6 +76,7 @@ class Tornado {
 				foreach (array('addressDirChmod', 'authorizedClientDirChmod', 'clientsKeysFilesAndDirChmod', 'onionFilesChmod', 'onionSaveDirChmod') as $key)
 					self::${$key} = self::$overrideChmod;
 		}
+		self::$b32Range = array_merge(range('a', 'z'), range(2, 7));
 		self::$basePath = rtrim(self::$onionSaveDir, '/\\');
 	}
 
@@ -111,7 +115,7 @@ class Tornado {
 	public function generateAuthorization($onionAddress, $limit=1, $direct=true)
 	{
 		$clients = ''; $count = 1;  $list = ''; $result = array();
-		if (!TornadoHelper::validateAddress($onionAddress))
+		if (!self::validateAddress($onionAddress))
 			return false;
 		if (is_array($limit))
 		{
@@ -129,8 +133,8 @@ class Tornado {
 		{
 			$client = is_array($clients) ? TornadoHelper::sanitizeClient($clients[$count-1]) : self::$defaultClientName . $count;
 			$newKeyPair = sodium_crypto_sign_keypair();
-			$secretKey = TornadoHelper::b32Tor(sodium_crypto_sign_ed25519_sk_to_curve25519(sodium_crypto_sign_secretkey($newKeyPair)));
-			$publicKey = TornadoHelper::b32Tor(sodium_crypto_sign_ed25519_pk_to_curve25519(sodium_crypto_sign_publickey($newKeyPair)));
+			$secretKey = TornadoHelper::b32EncTor(sodium_crypto_sign_ed25519_sk_to_curve25519(sodium_crypto_sign_secretkey($newKeyPair)));
+			$publicKey = TornadoHelper::b32EncTor(sodium_crypto_sign_ed25519_pk_to_curve25519(sodium_crypto_sign_publickey($newKeyPair)));
 			$secretAuthLine = $onionAddressNoTLD . self::$descriptorDelimiter . self::$descriptorName . self::$descriptorDelimiter . self::$descriptorType . self::$descriptorDelimiter . $secretKey;
 			$secretSavePath = $keyPath . '/' . $client . self::$authorizedClientFilePrivateSuffix;
 			$publicAuthLine = self::$descriptorName . self::$descriptorDelimiter . self::$descriptorType . self::$descriptorDelimiter . $publicKey;
@@ -156,9 +160,39 @@ class Tornado {
 		return self::$jsonResponse && $direct ? json_encode($result) : $result;
 	}
 
+	public function getAddressFromPublicKeyFile($publicKeyFile)
+	{
+		$onionAddress = self::encodePublicKey(TornadoHelper::readKeyFile($publicKeyFile, SODIUM_CRYPTO_BOX_SECRETKEYBYTES));
+		return self::verifyPublicKeyFile($publicKeyFile) && self::validateAddress($onionAddress) ? $onionAddress : false;
+	}
+
+	public function validateAddress($onionAddress)
+	{
+		$onionAddress = strtok(trim(strtolower($onionAddress)), '.');
+		if (preg_match('/^[a-z2-7]+$/', $onionAddress) && substr($onionAddress, -1) == 'd' && strlen($onionAddress) == self::$onionDomainLength)
+			return true;
+		return false;
+	}
+
+	public function verifyPublicKeyFile($publicKeyFile)
+	{
+		if (is_readable($publicKeyFile) && filesize($publicKeyFile) == self::$publicKeyFileSize)
+			return bin2hex(self::$publicKeyFileHeader) == bin2hex(TornadoHelper::readKeyFile($publicKeyFile)) ? true : false;
+		else
+			return false;
+	}
+
+	public function verifySecretKeyFile($secretKeyFile)
+	{
+		if (is_readable($secretKeyFile) && filesize($secretKeyFile) == self::$secretKeyFileSize)
+			return bin2hex(self::$secretKeyFileHeader) == bin2hex(TornadoHelper::readKeyFile($secretKeyFile)) ? true : false;
+		else
+			return false;
+	}
+
 	protected static function encodePublicKey($publicKey)
 	{
-		return TornadoHelper::b32Tor($publicKey . substr(hash(self::$onionHashAlgo, self::$onionChecksum . $publicKey . self::$onionVersion, true), 0, 2) . self::$onionVersion) . self::$onionTLD;
+		return TornadoHelper::b32EncTor($publicKey . substr(hash(self::$onionHashAlgo, self::$onionChecksum . $publicKey . self::$onionVersion, true), 0, 2) . self::$onionVersion) . self::$onionTLD;
 	}
 
 	protected static function expandSecretKey($secretKey)
@@ -173,18 +207,17 @@ class Tornado {
 
 class TornadoHelper extends Tornado {
 
-	protected static function b32Tor($enc)
+    protected static function b32EncTor($enc)
 	{
-		$b32 =''; $bin ='';
+		$b32 = ''; $bin = '';
 		$enc = str_split($enc);
-		$set = array_merge(range('a', 'z'), range(2, 7));
 		for($i = 0; $i < count($enc); $i++)
 			$bin.= str_pad(base_convert(ord($enc[$i]), 10, 2), 8, '0', STR_PAD_LEFT);
 		$bit = str_split($bin, 5);
 		$len = count($bit);
 		for ($i = 0; $i <= $len; $i++)
 			if (isset($bit[$i]))
-				$b32.= $set[base_convert(str_pad($bit[$i], 5, '0'), 2, 10)];
+				$b32.= parent::$b32Range[base_convert(str_pad($bit[$i], 5, '0'), 2, 10)];
 		return $len == parent::$onionDomainLength ? $b32 : strtoupper($b32);
 	}
 
@@ -194,6 +227,15 @@ class TornadoHelper extends Tornado {
 		if (!parent::$disableSaveFiles)
 			if (!file_exists($path) || !is_dir($path))
 				mkdir($path, $chmod, $recursive);
+	}
+
+	protected static function readKeyFile($keyFile, $skip=0, $bytes=32)
+	{
+		$kf = fopen($keyFile, 'rb');
+		fseek($kf, $skip);
+		$kd = fread($kf, $bytes);
+		fclose($kf);
+		return($kd);
 	}
 
 	protected static function sanitizeClient($client)
@@ -219,13 +261,5 @@ class TornadoHelper extends Tornado {
 			file_put_contents($path, $data);
 			chmod($path, $chmod);
 		}
-	}
-
-	protected static function validateAddress($address)
-	{
-		$address = strtok(trim(strtolower($address)), '.');
-		if (preg_match('/^[a-z2-7]+$/', $address) && substr($address, -1) == 'd' && strlen($address) == parent::$onionDomainLength)
-			return true;
-		return false;
 	}
 }
