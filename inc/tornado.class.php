@@ -225,23 +225,23 @@ class Tornado {
 
 class TornadoHelper extends Tornado {
 
-    protected static function b32DecTor($dec)
-    {
+	protected static function b32DecTor($dec)
+	{
 		$bin = ''; $i = 0; $rev = array(); $shift = 8;
-        $dec = str_split($dec);
+		$dec = str_split($dec);
 		foreach (parent::$b32Range as $key)
 			$rev[$key] = $i++;
-        for($i=0; $i < count($dec); $i = $i+$shift)
-        {
+		for($i=0; $i < count($dec); $i = $i+$shift)
+		{
 			$b32 = '';
-            for($n=0; $n < $shift; $n++)
-                $b32 .= str_pad(base_convert($rev[$dec[$i + $n]], 10, 2), 5, '0', STR_PAD_LEFT);
-            $bit = str_split($b32, $shift);
-            for($f = 0; $f < count($bit); $f++)
-                $bin.= chr(base_convert($bit[$f], 2, 10));
-        }
-        return $bin;
-    }
+			for($n=0; $n < $shift; $n++)
+				$b32 .= str_pad(base_convert($rev[$dec[$i + $n]], 10, 2), 5, '0', STR_PAD_LEFT);
+			$bit = str_split($b32, $shift);
+			for($f = 0; $f < count($bit); $f++)
+				$bin.= chr(base_convert($bit[$f], 2, 10));
+		}
+		return $bin;
+	}
 
 	protected static function b32EncTor($enc)
 	{
