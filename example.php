@@ -73,7 +73,7 @@ print_r($tornado->generateAuthorization('lgxsp4kuccd4nhwganvtnyhqveojchn7ipnbelu
 #$tornado->getPublicKeyFromAddress('wcrwac2rggamyaekzbwno6dloxugktuw4ml4gx72ioa7th3j5guiksad.onion'); // Returns base64 string or false
 
 // Get public key from onion address and save public key file
-#$tornado->getPublicKeyFromAddress('wcrwac2rggamyaekzbwno6dloxugktuw4ml4gx72ioa7th3j5guiksad.onion','hs_ed25519_public_key');
+#$tornado->getPublicKeyFromAddress('wcrwac2rggamyaekzbwno6dloxugktuw4ml4gx72ioa7th3j5guiksad.onion', 'hs_ed25519_public_key');
 
 // Get api string from hs_ed25519_secret_key file for use with ADD_ONION on the tor control port
 #$tornado->getAPIStringFromSecretKeyFile('hs_ed25519_secret_key'); // Returns string or false
