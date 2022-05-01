@@ -58,7 +58,7 @@ class Tornado {
 	protected static $secretKeyFileHeader = '== ed25519v1-secret: type0 ==' . "\x00\x00\x00";
 	protected static $secretKeyFileName = 'hs_ed25519_secret_key';
 	protected static $secretKeyFileSize = 96;
-	
+
 	public function __construct()
 	{
 		if (!function_exists('sodium_crypto_sign_keypair'))
@@ -115,15 +115,17 @@ class Tornado {
 	public function generateAuthorization($onionAddress, $limit=1, $direct=true)
 	{
 		$clients = ''; $count = 1;  $list = ''; $result = array();
-		if (!self::validateAddress($onionAddress))
-			return false;
 		if (is_array($limit))
 		{
 			$clients = $limit;
 			$limit = count($limit);
 		}
 		if ($direct == true)
+		{
+			if (!self::validateAddress($onionAddress))
+				return false;
 			$result['address'] = $onionAddress;
+		}
 		$onionAddressNoTLD = str_ireplace(self::$onionTLD, '', trim(strtolower($onionAddress)));
 		$keyPath = self::$basePath . '/' . $onionAddress . '/' . self::$clientsKeysDir;
 		$clientPath = self::$basePath . '/' . $onionAddress . '/' . self::$authorizedClientsDir;
@@ -166,10 +168,26 @@ class Tornado {
 		return self::verifyPublicKeyFile($publicKeyFile) && self::validateAddress($onionAddress) ? $onionAddress : false;
 	}
 
+	public function getAPIStringFromSecretKeyFile($secretKeyFile)
+	{
+			return self::verifySecretKeyFile($secretKeyFile) ? self::$descriptorTypeControlPort . self::$descriptorDelimiter . base64_encode(TornadoHelper::readKeyFile($secretKeyFile, SODIUM_CRYPTO_BOX_SECRETKEYBYTES , SODIUM_CRYPTO_SIGN_SECRETKEYBYTES)) : false;
+	}
+
+	public function getPublicKeyFromAddress($onionAddress, $publicKeyFile=null)
+	{
+		$publicKey = substr(TornadoHelper::b32DecTor(strtok(trim(strtolower($onionAddress)), '.')), 0, SODIUM_CRYPTO_BOX_SECRETKEYBYTES);
+		if (!is_null($publicKeyFile))
+			TornadoHelper::saveFile($publicKeyFile, self::$publicKeyFileHeader . $publicKey, self::$onionFilesChmod);
+		return base64_encode(self::$publicKeyFileHeader . $publicKey);
+	}
+
 	public function validateAddress($onionAddress)
 	{
 		$onionAddress = strtok(trim(strtolower($onionAddress)), '.');
-		if (preg_match('/^[a-z2-7]+$/', $onionAddress) && substr($onionAddress, -1) == 'd' && strlen($onionAddress) == self::$onionDomainLength)
+		$publicKey = substr(TornadoHelper::b32DecTor($onionAddress), 0, SODIUM_CRYPTO_BOX_SECRETKEYBYTES);
+		$isChecksum = bin2hex(substr(TornadoHelper::b32DecTor($onionAddress), SODIUM_CRYPTO_BOX_SECRETKEYBYTES, 1)) == substr(hash(self::$onionHashAlgo, self::$onionChecksum . $publicKey . self::$onionVersion), 0, 2) ? true : false;
+		$isVersion = bin2hex(substr(TornadoHelper::b32DecTor($onionAddress), -1)) == bin2hex(self::$onionVersion) ? true : false;
+		if (preg_match('/^[a-z2-7]+$/', $onionAddress) && strlen($onionAddress) == self::$onionDomainLength && $isChecksum && $isVersion)
 			return true;
 		return false;
 	}
@@ -207,7 +225,25 @@ class Tornado {
 
 class TornadoHelper extends Tornado {
 
-    protected static function b32EncTor($enc)
+    protected static function b32DecTor($dec)
+    {
+		$bin = ''; $i = 0; $rev = array(); $shift = 8;
+        $dec = str_split($dec);
+		foreach (parent::$b32Range as $key)
+			$rev[$key] = $i++;
+        for($i=0; $i < count($dec); $i = $i+$shift)
+        {
+			$b32 = '';
+            for($n=0; $n < $shift; $n++)
+                $b32 .= str_pad(base_convert($rev[$dec[$i + $n]], 10, 2), 5, '0', STR_PAD_LEFT);
+            $bit = str_split($b32, $shift);
+            for($f = 0; $f < count($bit); $f++)
+                $bin.= chr(base_convert($bit[$f], 2, 10));
+        }
+        return $bin;
+    }
+
+	protected static function b32EncTor($enc)
 	{
 		$b32 = ''; $bin = '';
 		$enc = str_split($enc);
@@ -229,7 +265,7 @@ class TornadoHelper extends Tornado {
 				mkdir($path, $chmod, $recursive);
 	}
 
-	protected static function readKeyFile($keyFile, $skip=0, $bytes=32)
+	protected static function readKeyFile($keyFile, $skip=0, $bytes=SODIUM_CRYPTO_BOX_SECRETKEYBYTES)
 	{
 		$kf = fopen($keyFile, 'rb');
 		fseek($kf, $skip);
