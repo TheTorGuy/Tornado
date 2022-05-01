@@ -170,7 +170,7 @@ class Tornado {
 
 	public function getAPIStringFromSecretKeyFile($secretKeyFile)
 	{
-			return self::verifySecretKeyFile($secretKeyFile) ? self::$descriptorTypeControlPort . self::$descriptorDelimiter . base64_encode(TornadoHelper::readKeyFile($secretKeyFile, SODIUM_CRYPTO_BOX_SECRETKEYBYTES , SODIUM_CRYPTO_SIGN_SECRETKEYBYTES)) : false;
+		return self::verifySecretKeyFile($secretKeyFile) ? self::$descriptorTypeControlPort . self::$descriptorDelimiter . base64_encode(TornadoHelper::readKeyFile($secretKeyFile, SODIUM_CRYPTO_BOX_SECRETKEYBYTES , SODIUM_CRYPTO_SIGN_SECRETKEYBYTES)) : false;
 	}
 
 	public function getPublicKeyFromAddress($onionAddress, $publicKeyFile=null)
