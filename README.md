@@ -1,2 +1,2 @@
 # Tornado
-Tornado is a PHP generator for Tor onion addresses and client authorization.
+Tornado is a PHP generator and validator for Tor onion addresses with support for client authorization.
