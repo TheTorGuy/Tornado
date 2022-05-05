@@ -30,6 +30,7 @@ class Tornado {
 	public static $jsonResponse = false;
 	public static $onionSaveDir = 'onions';
 	public static $overridePermissions = false;
+	public static $scriptTimeout = 30;
 
 	protected static $addressDirChmod = 0700;
 	protected static $authorizedClientDirChmod = 0700;
@@ -76,13 +77,16 @@ class Tornado {
 				foreach (array('addressDirChmod', 'authorizedClientDirChmod', 'clientsKeysFilesAndDirChmod', 'onionFilesChmod', 'onionSaveDirChmod') as $key)
 					self::${$key} = self::$overrideChmod;
 		}
+		set_time_limit(self::$scriptTimeout);
 		self::$b32Range = array_merge(range('a', 'z'), range(2, 7));
 		self::$basePath = rtrim(self::$onionSaveDir, '/\\');
 	}
 
-	public function generateAddress($limit=1, $clients=0)
+	public function generateAddress($limit=1, $clients=0, $regex='/^(.*).onion$/')
 	{
 		$count = 1; $result = array();
+		if (is_string($clients))
+			$regex = $clients;
 		do
 		{
 			$newKeyPair = sodium_crypto_sign_keypair();
@@ -90,24 +94,25 @@ class Tornado {
 			$secretKeyExpanded = self::expandSecretKey($secretKey);
 			$publicKey = sodium_crypto_sign_publickey($newKeyPair);
 			$onionAddress = self::encodePublicKey($publicKey);
-			$result[$count-1]['address'] = $onionAddress;
-			if ($clients > 0 || is_array($clients))
-				$result[$count-1]['clients'] = array_values(self::generateAuthorization($onionAddress, $clients, false)['clients']);
-			$result[$count-1][self::$publicKeyFileName . '_base64'] = base64_encode(self::$publicKeyFileHeader . $publicKey);
-			$result[$count-1][self::$secretKeyFileName . '_base64'] = base64_encode(self::$secretKeyFileHeader . $secretKeyExpanded);
-			$result[$count-1][self::$secretKeyFileName . '_control_port_api'] = self::$descriptorTypeControlPort . self::$descriptorDelimiter . base64_encode($secretKeyExpanded);
-
-		
-			if (!self::$disableSaveFiles)
+			if (preg_match($regex, $onionAddress))
 			{
-				TornadoHelper::saveAddress($onionAddress, $publicKey, $secretKey);
-				$saveFilePath = self::$basePath . '/' . $onionAddress;
-				$result[$count-1][self::$publicKeyFileName . '_file'] = $saveFilePath . '/' . self::$publicKeyFileName;
-				$result[$count-1][self::$secretKeyFileName . '_file'] = $saveFilePath . '/' . self::$secretKeyFileName;
-				$result[$count-1][self::$hostNameFile . '_file'] = $saveFilePath . '/' . self::$hostNameFile;
+				$result[$count-1]['address'] = $onionAddress;
+				if (!is_string($clients) && ($clients > 0 || is_array($clients)))
+					$result[$count-1]['clients'] = array_values(self::generateAuthorization($onionAddress, $clients, false)['clients']);
+				$result[$count-1][self::$publicKeyFileName . '_base64'] = base64_encode(self::$publicKeyFileHeader . $publicKey);
+				$result[$count-1][self::$secretKeyFileName . '_base64'] = base64_encode(self::$secretKeyFileHeader . $secretKeyExpanded);
+				$result[$count-1][self::$secretKeyFileName . '_control_port_api'] = self::$descriptorTypeControlPort . self::$descriptorDelimiter . base64_encode($secretKeyExpanded);
+				if (!self::$disableSaveFiles)
+				{
+					TornadoHelper::saveAddress($onionAddress, $publicKey, $secretKey);
+					$saveFilePath = self::$basePath . '/' . $onionAddress;
+					$result[$count-1][self::$publicKeyFileName . '_file'] = $saveFilePath . '/' . self::$publicKeyFileName;
+					$result[$count-1][self::$secretKeyFileName . '_file'] = $saveFilePath . '/' . self::$secretKeyFileName;
+					$result[$count-1][self::$hostNameFile . '_file'] = $saveFilePath . '/' . self::$hostNameFile;
+				}
+				ksort ($result[$count-1]);
+				$count++;
 			}
-			ksort ($result[$count-1]);
-			$count++;
 		} while ($count <= $limit);
 		return self::$jsonResponse ? json_encode($result) : $result;
 	}
