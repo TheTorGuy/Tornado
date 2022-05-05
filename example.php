@@ -77,3 +77,19 @@ print_r($tornado->generateAuthorization('lgxsp4kuccd4nhwganvtnyhqveojchn7ipnbelu
 
 // Get api string from hs_ed25519_secret_key file for use with ADD_ONION on the tor control port
 #$tornado->getAPIStringFromSecretKeyFile('hs_ed25519_secret_key'); // Returns string or false
+
+
+// Vanity - you're much better off using mkp224o for generating vanity addresses
+
+// Generate 1 onion address starting with abc
+#print "\nGenerate 1 onion address starting with abc:\n\n";
+#print_r($tornado->generateAddress(1, '/^abc/i'));
+
+// Generate 1 onion address starting with abc, with 3 authenticated clients
+#print "\nGenerate 1 onion addresses starting with abc, with 3 authenticated clients:\n\n";
+#print_r($tornado->generateAddress(1, 3, '/^abc/i'));
+
+// Generate 1 onion address, containing abc, with 3 authenticated named clients
+#print "\nGenerate 1 onion address, containing abc, with 3 authenticated named clients:\n\n";
+#$clients = array('Alice', 'Bob', 'Eve');
+#print_r($tornado->generateAddress(1, $clients, '/Abc/i'));
