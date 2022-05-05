@@ -82,7 +82,7 @@ class Tornado {
 		self::$basePath = rtrim(self::$onionSaveDir, '/\\');
 	}
 
-	public function generateAddress($limit=1, $clients=0, $regex='/^(.*).onion$/')
+	public function generateAddress($limit=1, $clients=0, $regex='/^[a-z2-7]+.onion$/i')
 	{
 		$count = 1; $result = array();
 		if (is_string($clients))
@@ -131,7 +131,7 @@ class Tornado {
 				return false;
 			$result['address'] = $onionAddress;
 		}
-		$onionAddressNoTLD = str_ireplace(self::$onionTLD, '', trim(strtolower($onionAddress)));
+		$onionAddressNoTLD = strtok(trim(strtolower($onionAddress)), '.');
 		$keyPath = self::$basePath . '/' . $onionAddress . '/' . self::$clientsKeysDir;
 		$clientPath = self::$basePath . '/' . $onionAddress . '/' . self::$authorizedClientsDir;
 		TornadoHelper::createDirectory($keyPath, self::$clientsKeysFilesAndDirChmod, true);
@@ -188,11 +188,11 @@ class Tornado {
 
 	public function validateAddress($onionAddress)
 	{
-		$onionAddress = strtok(trim(strtolower($onionAddress)), '.');
-		$publicKey = substr(TornadoHelper::b32DecTor($onionAddress), 0, SODIUM_CRYPTO_BOX_SECRETKEYBYTES);
-		$isChecksum = bin2hex(substr(TornadoHelper::b32DecTor($onionAddress), SODIUM_CRYPTO_BOX_SECRETKEYBYTES, 1)) == substr(hash(self::$onionHashAlgo, self::$onionChecksum . $publicKey . self::$onionVersion), 0, 2) ? true : false;
-		$isVersion = bin2hex(substr(TornadoHelper::b32DecTor($onionAddress), -1)) == bin2hex(self::$onionVersion) ? true : false;
-		if (preg_match('/^[a-z2-7]+$/', $onionAddress) && strlen($onionAddress) == self::$onionDomainLength && $isChecksum && $isVersion)
+		$onionAddressNoTLD = strtok(trim(strtolower($onionAddress)), '.');
+		$publicKey = substr(TornadoHelper::b32DecTor($onionAddressNoTLD), 0, SODIUM_CRYPTO_BOX_SECRETKEYBYTES);
+		$isChecksum = bin2hex(substr(TornadoHelper::b32DecTor($onionAddressNoTLD), SODIUM_CRYPTO_BOX_SECRETKEYBYTES, 1)) == substr(hash(self::$onionHashAlgo, self::$onionChecksum . $publicKey . self::$onionVersion), 0, 2) ? true : false;
+		$isVersion = bin2hex(substr(TornadoHelper::b32DecTor($onionAddressNoTLD), -1)) == bin2hex(self::$onionVersion) ? true : false;
+		if (preg_match('/^[a-z2-7]+' . self::$onionTLD . '$/i', $onionAddress) && strlen($onionAddressNoTLD) == self::$onionDomainLength && $isChecksum && $isVersion)
 			return true;
 		return false;
 	}
